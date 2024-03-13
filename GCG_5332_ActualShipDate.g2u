@@ -1,0 +1,394 @@
+﻿Program.Sub.ScreenSU.Start
+Gui.FormActualShipDate..Create
+Gui.FormActualShipDate..Caption("Actual Ship Date")
+Gui.FormActualShipDate..Size(8925,6240)
+Gui.FormActualShipDate..MinX(0)
+Gui.FormActualShipDate..MinY(0)
+Gui.FormActualShipDate..Position(0,0)
+Gui.FormActualShipDate..BackColor(-2147483633)
+Gui.FormActualShipDate..MousePointer(0)
+Gui.FormActualShipDate..Event(UnLoad,FormActualShipDate_UnLoad)
+Gui.FormActualShipDate..AlwaysOnTop(True)
+Gui.FormActualShipDate.gsgcShipLines.Create(GsGridControl)
+Gui.FormActualShipDate.gsgcShipLines.Size(8925,5010)
+Gui.FormActualShipDate.gsgcShipLines.Position(0,1035)
+Gui.FormActualShipDate.gsgcShipLines.Event(RowClick,GsGridControl1_RowClick)
+Gui.FormActualShipDate.gsgcShipLines.Anchor(15)
+Gui.FormActualShipDate.lblInstructions.Create(Label,"Enter the Actual Ship Date for each line :",True,3060,255,0,60,135,True,0,"Arial",8,-2147483633,0)
+Gui.FormActualShipDate.dtpActual.Create(DatePicker)
+Gui.FormActualShipDate.dtpActual.Size(1935,285)
+Gui.FormActualShipDate.dtpActual.Position(5340,600)
+Gui.FormActualShipDate.dtpActual.Event(Change,dtpActual_Change)
+Gui.FormActualShipDate.dtpActual.Anchor(9)
+'Gui.FormActualShipDate.dtpActual.Event(LostFocus,dtpActual_Change)
+Gui.FormActualShipDate.chkSameDate.Create(CheckBox)
+Gui.FormActualShipDate.chkSameDate.Size(1335,360)
+Gui.FormActualShipDate.chkSameDate.Position(7380,570)
+Gui.FormActualShipDate.chkSameDate.Caption("Same For All")
+Gui.FormActualShipDate.chkSameDate.Value(1)
+Gui.FormActualShipDate.chkSameDate.Anchor(9)
+Gui.FormActualShipDate.ddlLine.Create(DropDownList)
+Gui.FormActualShipDate.ddlLine.Size(1410,330)
+Gui.FormActualShipDate.ddlLine.Position(570,600)
+Gui.FormActualShipDate.ddlLine.Event(Click,ddlLine_Click)
+Gui.FormActualShipDate.cmdDone.Create(Button)
+Gui.FormActualShipDate.cmdDone.Size(990,375)
+Gui.FormActualShipDate.cmdDone.Position(7695,45)
+Gui.FormActualShipDate.cmdDone.Caption("Done")
+Gui.FormActualShipDate.cmdDone.Event(Click,cmdDone_Click)
+Gui.FormActualShipDate.cmdDone.Anchor(9)
+Gui.FormActualShipDate.lblLine.Create(Label,"Line",True,465,255,0,90,690,True,0,"Arial",8,-2147483633,0)
+Gui.FormActualShipDate.lblDate.Create(Label,"Date",True,495,255,0,4815,705,True,0,"Arial",8,-2147483633,0)
+Gui.FormActualShipDate.lblDate.Anchor(9)
+Program.Sub.ScreenSU.End
+
+Program.Sub.Preflight.Start
+V.Global.sPackingList.Declare(String)
+V.Global.bNew.Declare(Boolean)
+Program.Sub.Preflight.End
+
+Program.Sub.Main.Start
+F.Intrinsic.Control.Try
+V.Local.sError.Declare
+
+'GCG_5332_ActualShipDate.g2u
+'Trey S
+'12/19/2018
+'For Controlled Fluids
+'This program will prompt the user to enter an actual shipped date when shipping,
+'so that this can be compared against the system item promise date in GCG_5332_OTDReport
+
+F.Intrinsic.Control.SelectCase(V.Caller.Hook)
+	F.Intrinsic.Control.Case(28530)
+		V.Global.bNew.Set(True)
+		V.Global.sPackingList.Set(V.Passed.000168)
+		F.Intrinsic.String.LPad(V.Global.sPackingList, "0", 7, V.Global.sPackingList)
+		F.Intrinsic.Control.CallSub(LoadDataNew)
+		F.Intrinsic.Control.CallSub(SetUpGrid)
+		F.Intrinsic.Control.CallSub(dtpActual_Change)
+	
+	F.Intrinsic.Control.Case(25970)
+		V.Global.sPackingList.Set(V.Passed.000003.Trim)
+		F.Intrinsic.String.LPad(V.Global.sPackingList, "0", 7, V.Global.sPackingList)
+		F.Intrinsic.Control.CallSub(LoadDataOpen)
+		F.Intrinsic.Control.CallSub(SetUpGrid)
+		
+	F.Intrinsic.Control.CaseElse
+		F.Intrinsic.Control.End
+		
+F.Intrinsic.Control.EndSelect
+
+F.Intrinsic.Control.If(V.DataTable.dtShipLines.Exists)
+	F.Intrinsic.Control.If(V.DataTable.dtShipLines.RowCount, >, 0)
+		GUI.FormActualShipDate.ddlLine.ListIndex(0)
+		GUI.FormActualShipDate..Show
+	F.Intrinsic.Control.EndIf
+F.Intrinsic.Control.EndIf
+
+F.Intrinsic.Control.Catch
+	F.Intrinsic.String.Build("Project: {0}{1}{1}Subroutine: {2}{1}Error Occurred {3} with description {4}{1}{1}GAB Version: {5}",V.Ambient.ScriptPath,V.Ambient.Newline,V.Ambient.CurrentSubroutine,V.Ambient.ErrorNumber,V.Ambient.ErrorDescription,V.Ambient.GABVersion,V.Local.sError)
+	F.Intrinsic.UI.Msgbox(V.Local.sError)
+	F.Intrinsic.Control.End 
+F.Intrinsic.Control.EndTry
+Program.Sub.Main.End
+
+Program.Sub.LoadDataNew.Start
+F.Intrinsic.Control.Try
+V.Local.sError.Declare
+
+V.Local.iRows.Declare(Long)
+V.Local.sTemp.Declare(String)
+V.Local.iCounter.Declare(Long)
+V.Local.dDate.Declare(Date)
+V.Local.sDateTemp.Declare(String)
+
+F.Intrinsic.BDF.Load("bdfShipLines", "AUX001")
+
+F.Data.DataTable.Create("dtShipLines", True)
+F.Data.DataTable.AddColumn("dtShipLines", "Order_NO", "String")
+F.Data.DataTable.AddColumn("dtShipLines", "Line", "String")
+F.Data.DataTable.AddColumn("dtShipLines", "Part", "String")
+F.Data.DataTable.AddColumn("dtShipLines", "QTY_ORDERED", "Float")
+F.Data.DataTable.AddColumn("dtShipLines", "QTY_SHIPPED", "Float")
+F.Data.DataTable.AddColumn("dtShipLines", "SHIP_DATE", "Date")
+F.Data.DataTable.AddColumn("dtShipLines", "ACTUAL_SHIP_DATE", "Date")
+
+F.Intrinsic.BDF.ReadRowCount("bdfShipLines", V.Local.iRows)
+F.Intrinsic.Math.Sub(V.Local.iRows, 1, V.Local.iRows)
+F.Intrinsic.Control.For(V.Local.iCounter, 0, V.Local.iRows, 1)
+	F.Intrinsic.BDF.ReadRow("bdfShipLines", V.Local.iCounter, V.Local.sTemp)
+	F.Intrinsic.String.Split(V.Local.sTemp, "|~|", V.Local.sTemp)
+	F.Intrinsic.Control.If(V.Local.sTemp(3).Trim, >, 0)
+		F.Intrinsic.String.Mid(V.Local.sTemp(13), 5, 2, V.Local.sDateTemp)
+		F.Intrinsic.String.Build("{0}-{1}-{2}", V.Local.sTemp(13).Left4, V.Local.sDateTemp, V.Local.sTemp(13).Right2, V.Local.sDateTemp)
+		V.Local.dDate.Set(V.Local.sDateTemp)
+		F.Data.DataTable.AddRow("dtShipLines", "Line", V.Local.sTemp(1), "Part", V.Local.sTemp(8).Trim, "QTY_ORDERED", V.Local.sTemp(2).Trim, "QTY_SHIPPED", V.Local.sTemp(3).Trim, "SHIP_DATE", V.Local.dDate, "Order_NO", V.Local.sTemp(0).Trim)
+	F.Intrinsic.Control.EndIf
+F.Intrinsic.Control.Next(V.Local.iCounter)
+
+GUI.FormActualShipDate.ddlLine.AddItems("DataTable", "dtShipLines", "Line", "Line")
+F.Data.DataTable.SetValueFormat("dtShipLines", -1, "Order_NO", "Order_NO", "0000000")
+F.Data.DataTable.SetValueFormat("dtShipLines", -1, "Line", "Line", "000")
+
+F.Intrinsic.Control.Catch
+	F.Intrinsic.String.Build("Project: {0}{1}{1}Subroutine: {2}{1}Error Occurred {3} with description {4}{1}{1}GAB Version: {5}",V.Ambient.ScriptPath,V.Ambient.Newline,V.Ambient.CurrentSubroutine,V.Ambient.ErrorNumber,V.Ambient.ErrorDescription,V.Ambient.GABVersion,V.Local.sError)
+	F.Intrinsic.UI.Msgbox(V.Local.sError)
+	F.Intrinsic.Control.End 
+F.Intrinsic.Control.EndTry
+Program.Sub.LoadDataNew.End
+
+Program.Sub.LoadDataOpen.Start
+F.Intrinsic.Control.Try
+V.Local.sError.Declare
+
+V.Local.sSQL.Declare(String)
+
+F.Intrinsic.String.Build("Select RTRIM(ORDER_NO) as Order_NO, SUBSTRING(ORDER_REC, 1, 3) as Line, RTRIM(PART) as PART, QTY_ORDERED, QTY_SHIPPED, CNV_SHIP_DATE as SHIP_DATE, ORDER_SUFFIX as ORDER_SUFFIX from V_SHIPMENT_LINES where PCK_NO = '{0}'", V.Global.sPackingList, V.Local.sSQL)
+
+F.ODBC.Connection!Con.OpenCompanyConnection
+F.Data.DataTable.CreateFromSQL("dtShipLines", "Con", V.Local.sSQL, True)
+
+F.Data.DataTable.AddExpressionColumn("dtShipLines", "IDENT", "STRING", "Order_NO + ORDER_SUFFIX + LINE")
+F.Intrinsic.String.Build("select ORDER_NUMBER + ORDER_SUFFIX + SUBSTRING(ORDER_LINE, 1, 3) as IDENT, ACTUAL_SHIP_DATE from GCG_5332_ActualShip where PACKING_LIST = '{0}'", V.Global.sPackingList, V.Local.sSQL)
+F.Data.Dictionary.CreateFromSQL("dictShipDate", "Con", V.Local.sSQL)
+F.Data.Dictionary.SetDefaultReturn("dictShipDate", V.Ambient.Date.FormatYYYY-MM-DD)
+F.Data.DataTable.AddColumn("dtShipLines", "ACTUAL_SHIP_DATE", "Date")
+F.Data.DataTable.FillFromDictionary("dtShipLines", "dictShipDate", "IDENT", "ACTUAL_SHIP_DATE")
+F.Data.Dictionary.Close("dictShipDate")
+F.ODBC.Connection!Con.Close
+
+GUI.FormActualShipDate.ddlLine.AddItems("DataTable", "dtShipLines", "Line", "Line")
+F.Data.DataTable.SetValueFormat("dtShipLines", -1, "Order_NO", "Order_NO", "0000000")
+F.Data.DataTable.SetValueFormat("dtShipLines", -1, "Line", "Line", "000")
+
+F.Intrinsic.Control.Catch
+	F.Intrinsic.String.Build("Project: {0}{1}{1}Subroutine: {2}{1}Error Occurred {3} with description {4}{1}{1}GAB Version: {5}",V.Ambient.ScriptPath,V.Ambient.Newline,V.Ambient.CurrentSubroutine,V.Ambient.ErrorNumber,V.Ambient.ErrorDescription,V.Ambient.GABVersion,V.Local.sError)
+	F.Intrinsic.UI.Msgbox(V.Local.sError)
+	F.Intrinsic.Control.End 
+F.Intrinsic.Control.EndTry
+Program.Sub.LoadDataOpen.End
+
+Program.Sub.SetUpGrid.Start
+F.Intrinsic.Control.Try
+V.Local.sError.Declare
+
+GUI.FormActualShipDate.gsgcShipLines.AddGridviewFromDatatable("gvShipLines", "dtShipLines")
+
+GUI.FormActualShipDate.gsgcShipLines.SetColumnProperty("gvShipLines", "Line", "HeaderFontBold", True)
+GUI.FormActualShipDate.gsgcShipLines.SetColumnProperty("gvShipLines", "Part", "HeaderFontBold", True)
+GUI.FormActualShipDate.gsgcShipLines.SetColumnProperty("gvShipLines", "QTY_ORDERED", "HeaderFontBold", True)
+GUI.FormActualShipDate.gsgcShipLines.SetColumnProperty("gvShipLines", "QTY_SHIPPED", "HeaderFontBold", True)
+GUI.FormActualShipDate.gsgcShipLines.SetColumnProperty("gvShipLines", "SHIP_DATE", "HeaderFontBold", True)
+GUI.FormActualShipDate.gsgcShipLines.SetColumnProperty("gvShipLines", "ACTUAL_SHIP_DATE", "HeaderFontBold", True)
+
+GUI.FormActualShipDate.gsgcShipLines.SetColumnProperty("gvShipLines", "Line", "Caption", "Line")
+GUI.FormActualShipDate.gsgcShipLines.SetColumnProperty("gvShipLines", "Part", "Caption", "Part")
+GUI.FormActualShipDate.gsgcShipLines.SetColumnProperty("gvShipLines", "QTY_ORDERED", "Caption", "Order Qty")
+GUI.FormActualShipDate.gsgcShipLines.SetColumnProperty("gvShipLines", "QTY_SHIPPED", "Caption", "Ship Qty")
+GUI.FormActualShipDate.gsgcShipLines.SetColumnProperty("gvShipLines", "SHIP_DATE", "Caption", "Ship Date")
+GUI.FormActualShipDate.gsgcShipLines.SetColumnProperty("gvShipLines", "ACTUAL_SHIP_DATE", "Caption", "Actual Ship Date")
+
+GUI.FormActualShipDate.gsgcShipLines.SetColumnProperty("gvShipLines", "Line", "ReadOnly", True)
+GUI.FormActualShipDate.gsgcShipLines.SetColumnProperty("gvShipLines", "Part", "ReadOnly", True)
+GUI.FormActualShipDate.gsgcShipLines.SetColumnProperty("gvShipLines", "QTY_ORDERED", "ReadOnly", True)
+GUI.FormActualShipDate.gsgcShipLines.SetColumnProperty("gvShipLines", "QTY_SHIPPED", "ReadOnly", True)
+GUI.FormActualShipDate.gsgcShipLines.SetColumnProperty("gvShipLines", "SHIP_DATE", "ReadOnly", True)
+GUI.FormActualShipDate.gsgcShipLines.SetColumnProperty("gvShipLines", "ACTUAL_SHIP_DATE", "ReadOnly", True)
+
+GUI.FormActualShipDate.gsgcShipLines.SetColumnProperty("gvShipLines", "Line", "AllowEdit", False)
+GUI.FormActualShipDate.gsgcShipLines.SetColumnProperty("gvShipLines", "Part", "AllowEdit", False)
+GUI.FormActualShipDate.gsgcShipLines.SetColumnProperty("gvShipLines", "QTY_ORDERED", "AllowEdit", False)
+GUI.FormActualShipDate.gsgcShipLines.SetColumnProperty("gvShipLines", "QTY_SHIPPED", "AllowEdit", False)
+GUI.FormActualShipDate.gsgcShipLines.SetColumnProperty("gvShipLines", "SHIP_DATE", "AllowEdit", False)
+GUI.FormActualShipDate.gsgcShipLines.SetColumnProperty("gvShipLines", "ACTUAL_SHIP_DATE", "AllowEdit", False)
+
+GUI.FormActualShipDate.gsgcShipLines.SetColumnProperty("gvShipLines", "Line", "HeaderHAlignment", "Center")
+GUI.FormActualShipDate.gsgcShipLines.SetColumnProperty("gvShipLines", "Part", "HeaderHAlignment", "Center")
+GUI.FormActualShipDate.gsgcShipLines.SetColumnProperty("gvShipLines", "QTY_ORDERED", "HeaderHAlignment", "Center")
+GUI.FormActualShipDate.gsgcShipLines.SetColumnProperty("gvShipLines", "QTY_SHIPPED", "HeaderHAlignment", "Center")
+GUI.FormActualShipDate.gsgcShipLines.SetColumnProperty("gvShipLines", "SHIP_DATE", "HeaderHAlignment", "Center")
+GUI.FormActualShipDate.gsgcShipLines.SetColumnProperty("gvShipLines", "ACTUAL_SHIP_DATE", "HeaderHAlignment", "Center")
+
+GUI.FormActualShipDate.gsgcShipLines.SetColumnProperty("gvShipLines", "Line", "CellHAlignment", "Far")
+GUI.FormActualShipDate.gsgcShipLines.SetColumnProperty("gvShipLines", "Part", "CellHAlignment", "Far")
+GUI.FormActualShipDate.gsgcShipLines.SetColumnProperty("gvShipLines", "QTY_ORDERED", "CellHAlignment", "Far")
+GUI.FormActualShipDate.gsgcShipLines.SetColumnProperty("gvShipLines", "QTY_SHIPPED", "CellHAlignment", "Far")
+GUI.FormActualShipDate.gsgcShipLines.SetColumnProperty("gvShipLines", "SHIP_DATE", "CellHAlignment", "Center")
+GUI.FormActualShipDate.gsgcShipLines.SetColumnProperty("gvShipLines", "ACTUAL_SHIP_DATE", "CellHAlignment", "Center")
+
+GUI.FormActualShipDate.gsgcShipLines.SetColumnProperty("gvShipLines", "Line", "MinWidth", 30)
+GUI.FormActualShipDate.gsgcShipLines.SetColumnProperty("gvShipLines", "Part", "MinWidth", 80)
+GUI.FormActualShipDate.gsgcShipLines.SetColumnProperty("gvShipLines", "QTY_ORDERED", "MinWidth", 80)
+GUI.FormActualShipDate.gsgcShipLines.SetColumnProperty("gvShipLines", "QTY_SHIPPED", "MinWidth", 80)
+GUI.FormActualShipDate.gsgcShipLines.SetColumnProperty("gvShipLines", "SHIP_DATE", "MinWidth", 80)
+GUI.FormActualShipDate.gsgcShipLines.SetColumnProperty("gvShipLines", "ACTUAL_SHIP_DATE", "MinWidth", 100)
+
+GUI.FormActualShipDate.gsgcShipLines.SetColumnProperty("gvShipLines", "SHIP_DATE", "DisplayCustomDateTime", "d")
+GUI.FormActualShipDate.gsgcShipLines.SetColumnProperty("gvShipLines", "ACTUAL_SHIP_DATE", "DisplayCustomDateTime", "d")
+
+GUI.FormActualShipDate.gsgcShipLines.SetColumnProperty("gvShipLines", "Order_NO", "Visible", False)
+
+F.Intrinsic.Control.If(V.Global.bNew.Not)
+	GUI.FormActualShipDate.gsgcShipLines.SetColumnProperty("gvShipLines", "ORDER_SUFFIX", "Visible", False)
+	GUI.FormActualShipDate.gsgcShipLines.SetColumnProperty("gvShipLines", "IDENT", "Visible", False)
+F.Intrinsic.Control.EndIf
+
+GUI.FormActualShipDate.gsgcShipLines.MainView("gvShipLines")
+
+F.Intrinsic.Control.Catch
+	F.Intrinsic.String.Build("Project: {0}{1}{1}Subroutine: {2}{1}Error Occurred {3} with description {4}{1}{1}GAB Version: {5}",V.Ambient.ScriptPath,V.Ambient.Newline,V.Ambient.CurrentSubroutine,V.Ambient.ErrorNumber,V.Ambient.ErrorDescription,V.Ambient.GABVersion,V.Local.sError)
+	F.Intrinsic.UI.Msgbox(V.Local.sError)
+	F.Intrinsic.Control.End 
+F.Intrinsic.Control.EndTry
+Program.Sub.SetUpGrid.End
+
+Program.Sub.FormActualShipDate_UnLoad.Start
+F.Intrinsic.Control.Try
+V.Local.sError.Declare
+
+V.Passed.777777.Set(1)
+F.Intrinsic.Control.End
+
+F.Intrinsic.Control.Catch
+	F.Intrinsic.String.Build("Project: {0}{1}{1}Subroutine: {2}{1}Error Occurred {3} with description {4}{1}{1}GAB Version: {5}",V.Ambient.ScriptPath,V.Ambient.Newline,V.Ambient.CurrentSubroutine,V.Ambient.ErrorNumber,V.Ambient.ErrorDescription,V.Ambient.GABVersion,V.Local.sError)
+	F.Intrinsic.UI.Msgbox(V.Local.sError)
+	F.Intrinsic.Control.End 
+F.Intrinsic.Control.EndTry
+Program.Sub.FormActualShipDate_UnLoad.End
+
+Program.Sub.dtpActual_Change.Start
+F.Intrinsic.Control.Try
+V.Local.sError.Declare
+
+V.Local.iIndex.Declare(Long)
+V.Local.sSelect.Declare(String)
+
+F.Intrinsic.Control.If(V.Screen.FormActualShipDate!chkSameDate.checkedAsBoolean)
+	F.Data.DataTable.SetValue("dtShipLines", -1, "ACTUAL_SHIP_DATE", V.Screen.FormActualShipDate!dtpActual.Value)
+F.Intrinsic.Control.Else
+
+	F.Intrinsic.String.Lpad(V.Screen.FormActualShipDate!ddlLine.Value, "0", 3, V.Local.sSelect)
+	F.Intrinsic.String.Build("LINE = '{0}'", V.Local.sSelect, V.Local.sSelect)
+	F.Data.DataTable.Select("dtShipLines", V.Local.sSelect, V.Local.iIndex)	
+	
+	'F.Intrinsic.Math.Sub(V.Screen.FormActualShipDate!ddlLine.Value, 1, V.Local.iIndex)
+	F.Data.DataTable.SetValue("dtShipLines", V.Local.iIndex, "ACTUAL_SHIP_DATE", V.Screen.FormActualShipDate!dtpActual.Value)
+F.Intrinsic.Control.EndIf
+
+F.Intrinsic.Control.Catch
+	F.Intrinsic.String.Build("Project: {0}{1}{1}Subroutine: {2}{1}Error Occurred {3} with description {4}{1}{1}GAB Version: {5}",V.Ambient.ScriptPath,V.Ambient.Newline,V.Ambient.CurrentSubroutine,V.Ambient.ErrorNumber,V.Ambient.ErrorDescription,V.Ambient.GABVersion,V.Local.sError)
+	F.Intrinsic.UI.Msgbox(V.Local.sError)
+	F.Intrinsic.Control.End 
+F.Intrinsic.Control.EndTry
+Program.Sub.dtpActual_Change.End
+
+Program.Sub.GsGridControl1_RowClick.Start
+F.Intrinsic.Control.Try
+V.Local.sError.Declare
+
+GUI.FormActualShipDate.ddlLine.ListIndex(V.Args.RowIndex)
+
+F.Intrinsic.Control.Catch
+	F.Intrinsic.String.Build("Project: {0}{1}{1}Subroutine: {2}{1}Error Occurred {3} with description {4}{1}{1}GAB Version: {5}",V.Ambient.ScriptPath,V.Ambient.Newline,V.Ambient.CurrentSubroutine,V.Ambient.ErrorNumber,V.Ambient.ErrorDescription,V.Ambient.GABVersion,V.Local.sError)
+	F.Intrinsic.UI.Msgbox(V.Local.sError)
+	F.Intrinsic.Control.End 
+F.Intrinsic.Control.EndTry
+Program.Sub.GsGridControl1_RowClick.End
+
+Program.Sub.cmdDone_Click.Start
+F.Intrinsic.Control.Try
+V.Local.sError.Declare
+
+V.Local.sSQL.Declare(String)
+V.Local.iCounter.Declare(Long)
+V.Local.sFilter.Declare(String)
+V.Local.bInString.Declare(Boolean)
+V.Local.bMultipleOrders.Declare(Boolean, False)
+V.Local.sSuffix.Declare(String)
+V.Local.sRet.Declare(String)
+V.Local.sExpression.Declare(String)
+
+GUI.FormActualShipDate..Enabled(False)
+
+F.Data.DataTable.AddExpressionColumn("dtShipLines", "ORDER_REC", "STRING", "LINE + '0'")
+F.Data.DataTable.AddExpressionColumn("dtShipLines", "LINE_COMPLETE", "BOOLEAN", "[QTY_SHIPPED] >= [QTY_ORDERED]")
+F.Data.DataTable.AddColumn("dtShipLines", "PACKING_LIST", "String", V.Global.sPackingList)
+
+'need to get order suffix
+F.ODBC.Connection!Con.OpenCompanyConnection
+
+F.Intrinsic.Control.If(V.Global.bNew)
+	'possible to have multiple orders on the same shipment...
+	F.Intrinsic.Control.If(V.DataTable.dtShipLines.RowCount, >, 0)
+		F.Intrinsic.String.Build("ORDER_NO = '{0}'", V.DataTable.dtShipLines(0).ORDER_NO!FieldValTrim, V.Local.sFilter)
+	F.Intrinsic.Control.EndIf
+	
+	F.Intrinsic.Control.For(V.Local.iCounter, 1, V.DataTable.dtShipLines.RowCount--, 1)
+		F.Intrinsic.String.IsInString(V.Local.sFilter, V.DataTable.dtShipLines(V.Local.iCounter).ORDER_NO!FieldValTrim, True, V.Local.bInString)
+		F.Intrinsic.Control.If(V.Local.bInString.Not)
+			F.Intrinsic.String.Build("{1} or ORDER_NO = '{0}'", V.DataTable.dtShipLines(V.Local.iCounter).ORDER_NO!FieldValTrim, V.Local.sFilter, V.Local.sFilter)
+			V.Local.bMultipleOrders.Set(True)
+		F.Intrinsic.Control.EndIf
+	F.Intrinsic.Control.Next(V.Local.iCounter)
+	F.Intrinsic.String.Build("select ORDER_NO, MAX(ORDER_SUFFIX) from V_SHIPMENT_LINES where {0} group by ORDER_NO", V.Local.sFilter, V.Local.sSQL)
+	F.ODBC.Connection!Con.ExecuteAndReturn(V.Local.sSQL, V.Local.sRet)
+	
+	F.Intrinsic.Control.If(V.Ambient.ExecuteAndReturnEOF)
+		V.Local.sSuffix.Set("0000")
+		F.Data.DataTable.AddColumn("dtShipLines", "ORDER_SUFFIX", "STRING", V.Local.sSuffix)
+	F.Intrinsic.Control.Else
+		F.Intrinsic.Control.If(V.Local.bMultipleOrders)
+			'multiple orders on the same shipment
+			F.Data.Dictionary.CreateFromSQL("dictSuffixes", "Con", V.Local.sSQL)
+			F.Data.Dictionary.SetDefaultReturn("0000")
+			F.Data.DataTable.AddColumn("dtShipLines", "ORDER_SUFFIX", "STRING")
+			F.Data.DataTable.FillFromDictionary("dtShipLines", "dictSuffixes", "ORDER", "ORDER_SUFFIX")
+			F.Data.Dictionary.Close("dictSuffixes")
+		F.Intrinsic.Control.Else
+			F.Intrinsic.String.Split(V.Local.sRet, "*!*", V.Local.sRet)
+			F.Intrinsic.Math.Add(V.Local.sRet(1), 1, V.Local.sSuffix)
+			F.Intrinsic.String.LPad(V.Local.sSuffix, "0", 4, V.Local.sSuffix)
+			F.Data.DataTable.AddColumn("dtShipLines", "ORDER_SUFFIX", "STRING", V.Local.sSuffix)
+		F.Intrinsic.Control.EndIf
+	F.Intrinsic.Control.EndIf
+F.Intrinsic.Control.EndIf
+
+'save to the table
+F.Data.DataTable.SaveToDB("dtShipLines", "Con", "GCG_5332_ActualShip", "PACKING_LIST*!*ORDER_NO*!*ORDER_REC*!*ORDER_SUFFIX", 256, "Order_NO@!@ORDER_NUMBER*!*ORDER_REC@!@ORDER_LINE*!*SHIP_DATE@!@SHIP_DATE*!*ACTUAL_SHIP_DATE@!@ACTUAL_SHIP_DATE*!*QTY_SHIPPED@!@QTY*!*LINE_COMPLETE@!@LINE_COMPLETE*!*PACKING_LIST@!@PACKING_LIST*!*ORDER_SUFFIX@!@ORDER_SUFFIX")
+F.ODBC.Connection!Con.Close
+F.Data.DataTable.Close("dtShipLines")
+
+'F.Intrinsic.Control.CallSub(FormActualShipDate_UnLoad)
+GUI.FormActualShipDate..Visible(False)
+F.Intrinsic.Control.End
+
+F.Intrinsic.Control.Catch
+	F.Intrinsic.String.Build("Project: {0}{1}{1}Subroutine: {2}{1}Error Occurred {3} with description {4}{1}{1}GAB Version: {5}",V.Ambient.ScriptPath,V.Ambient.Newline,V.Ambient.CurrentSubroutine,V.Ambient.ErrorNumber,V.Ambient.ErrorDescription,V.Ambient.GABVersion,V.Local.sError)
+	F.Intrinsic.UI.Msgbox(V.Local.sError)
+	F.Intrinsic.Control.End 
+F.Intrinsic.Control.EndTry
+Program.Sub.cmdDone_Click.End
+
+Program.Sub.ddlLine_Click.Start
+F.Intrinsic.Control.Try
+V.Local.sError.Declare
+
+V.Local.iIndex.Declare(Long)
+V.Local.sSelect.Declare(String)
+
+F.Intrinsic.String.Lpad(V.Screen.FormActualShipDate!ddlLine.Value, "0", 3, V.Local.sSelect)
+F.Intrinsic.String.Build("LINE = '{0}'", V.Local.sSelect, V.Local.sSelect)
+F.Data.DataTable.Select("dtShipLines", V.Local.sSelect, V.Local.iIndex)
+GUI.FormActualShipDate.gsgcShipLines.SelectRow("gvShipLines", V.Local.iIndex)
+
+F.Intrinsic.Control.Catch
+	F.Intrinsic.String.Build("Project: {0}{1}{1}Subroutine: {2}{1}Error Occurred {3} with description {4}{1}{1}GAB Version: {5}",V.Ambient.ScriptPath,V.Ambient.Newline,V.Ambient.CurrentSubroutine,V.Ambient.ErrorNumber,V.Ambient.ErrorDescription,V.Ambient.GABVersion,V.Local.sError)
+	F.Intrinsic.UI.Msgbox(V.Local.sError)
+	F.Intrinsic.Control.End 
+F.Intrinsic.Control.EndTry
+Program.Sub.ddlLine_Click.End
+
+Program.Sub.Comments.Start
+${$5$}$2.0.0.0$}$2
+${$6$}$lperrine$}$20221115111813068$}$2NUFt80QpM3hrjXY+iDnxks7M/ROcjnGWtx+efOAbQSwV7kIqpG91iXYHXyyWkeVuB7A6fBsx1qR6jgRtlsVeA==
+Program.Sub.Comments.End
